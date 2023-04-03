@@ -65,10 +65,10 @@ def evaluate(results_trace: dict, output_file: str):
 
     for party in parties:
         print(party)
-        print(fortunate_moves[party])
-        print(selfish_moves[party])
-        print(concession_moves[party])
-        print(unfortunate_moves[party])
-        print(nice_moves[party])
-        print(silent_moves[party])
+        print("Fortunate: " + str(fortunate_moves[party]))
+        print("Selfish: " + str(selfish_moves[party]))
+        print("Concession: " + str(concession_moves[party]))
+        print("Unfortunate: " + str(unfortunate_moves[party]))
+        print("Nice: " + str(nice_moves[party]))
+        print("Silent: " + str(silent_moves[party]))
 
