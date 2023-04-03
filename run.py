@@ -2,6 +2,7 @@ import json
 import time
 from pathlib import Path
 
+from utils.plot import plot
 from utils.plot_trace import plot_trace
 from utils.runners import run_session
 
@@ -36,6 +37,7 @@ session_results_trace, session_results_summary = run_session(settings)
 # plot trace to html file
 if not session_results_trace["error"]:
     plot_trace(session_results_trace, RESULTS_DIR.joinpath("trace_plot.html"))
+    plot(session_results_trace, RESULTS_DIR.joinpath("plot.html"))
 
 # write results to file
 with open(RESULTS_DIR.joinpath("session_results_trace.json"), "w", encoding="utf-8") as f:
