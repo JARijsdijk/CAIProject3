@@ -211,13 +211,13 @@ class Agent61(DefaultParty):
 
         domain = self.profile.getDomain()
         all_bids = self.get_bids(AllBidsList(domain))
-        best_bid = all_bids.sort(key=lambda x: (self.score_bid(x, alpha, eps)))[0]
+        best_bid = sorted(all_bids, key=lambda x: (self.score_bid(x, alpha, eps)))[0]
 
         return best_bid
 
     def get_bids(self, all_bids):
         if self.best_bids is None:
-            self.best_bids = all_bids.sort(key=lambda x: self.profile.getUtility(x))[:((len(all_bids)) / 10)]
+            self.best_bids = sorted(all_bids, key=lambda x: self.profile.getUtility(x))[:((len(all_bids)) / 10)]
             return self.best_bids
 
         random_bids = []
