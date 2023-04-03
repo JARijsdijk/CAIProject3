@@ -48,9 +48,13 @@ class Agent61(DefaultParty):
         self.settings: Settings = None
         self.storage_dir: str = None
 
+        self.reservation_bid: Bid = None
         self.last_received_bid: Bid = None
         self.opponent_model: OpponentModel = None
         self.logger.log(logging.INFO, "party is initialized")
+
+        self.best_bids = None
+        self.all_best_bids = None
 
     def notifyChange(self, data: Inform):
         """MUST BE IMPLEMENTED
@@ -162,13 +166,13 @@ class Agent61(DefaultParty):
         """This method is called when it is our turn. It should decide upon an action
         to perform and send this action to the opponent.
         """
+        bid = self.find_bid()
         # check if the last received offer is good enough
-        if self.accept_condition(self.last_received_bid):
+        if self.accept_condition(self.last_received_bid, bid):
             # if so, accept the offer
             action = Accept(self.me, self.last_received_bid)
         else:
             # if not, find a bid to propose as counter offer
-            bid = self.find_bid()
             action = Offer(self.me, bid)
 
         # send the action
@@ -183,41 +187,58 @@ class Agent61(DefaultParty):
         with open(f"{self.storage_dir}/data.md", "w") as f:
             f.write(data)
 
-    ###########################################################################################
-    ################################## Example methods below ##################################
-    ###########################################################################################
-
-    def accept_condition(self, bid: Bid) -> bool:
-        if bid is None:
+    def accept_condition(self, received_bid: Bid, next_bid: Bid) -> bool:
+        if received_bid is None:
             return False
 
+        received_value = self.profile.getUtility(received_bid)
+        possible_value = self.profile.getUtility(next_bid)
         # progress of the negotiation session between 0 and 1 (1 is deadline)
         progress = self.progress.get(time() * 1000)
+        x = 1 - progress
+        adjusted_value = x * float(possible_value)
+        reserve_value = 0
+        if self.reservation_bid is not None:
+            reserve_value = self.profile.getUtility(self.reservation_bid)
 
-        # very basic approach that accepts if the offer is valued above 0.7 and
-        # 95% of the time towards the deadline has passed
-        conditions = [
-            self.profile.getUtility(bid) > 0.8,
-            progress > 0.95,
-        ]
-        return all(conditions)
+        if received_value >= adjusted_value and received_value >= reserve_value:
+            return True
+
+        return False
 
     def find_bid(self) -> Bid:
         # compose a list of all possible bids
+        alpha = 0.95
+        eps = 0.1
         domain = self.profile.getDomain()
         all_bids = AllBidsList(domain)
 
-        best_bid_score = 0.0
-        best_bid = None
+        candidate_bids = self.get_bids(all_bids)
+        best_bid = sorted(candidate_bids, key=lambda x: (self.score_bid(x, alpha, eps)), reverse=True)[0]
+        if best_bid in self.best_bids:
+            self.best_bids.remove(best_bid)
 
-        # take 500 attempts to find a bid according to a heuristic score
-        for _ in range(500):
-            bid = all_bids.get(randint(0, all_bids.size() - 1))
-            bid_score = self.score_bid(bid)
-            if bid_score > best_bid_score:
-                best_bid_score, best_bid = bid_score, bid
+            if len(self.all_best_bids) > 1:
+                self.best_bids.append(self.best_bids.pop(0))
+
 
         return best_bid
+
+    def get_bids(self, all_bids):
+        if self.best_bids is None:
+            split_off = min(int(all_bids.size()), 200)
+            self.all_best_bids = sorted(all_bids, key=lambda x: self.profile.getUtility(x), reverse=True)
+            self.best_bids = self.all_best_bids[:split_off]
+            self.all_best_bids = self.all_best_bids[split_off:]
+
+        random_bids = []
+
+        # take 500 attempts to find a bid according to a heuristic score
+
+        for _ in range(max(len(self.best_bids), 100)):
+            random_bids.append(all_bids.get(randint(0, all_bids.size() - 1)))
+
+        return self.best_bids + random_bids
 
     def score_bid(self, bid: Bid, alpha: float = 0.95, eps: float = 0.1) -> float:
         """Calculate heuristic score for a bid
