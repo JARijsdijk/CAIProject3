@@ -48,6 +48,7 @@ class Agent61(DefaultParty):
         self.settings: Settings = None
         self.storage_dir: str = None
 
+        self.reservation_bid: Bid = None
         self.last_received_bid: Bid = None
         self.opponent_model: OpponentModel = None
         self.logger.log(logging.INFO, "party is initialized")
@@ -162,13 +163,13 @@ class Agent61(DefaultParty):
         """This method is called when it is our turn. It should decide upon an action
         to perform and send this action to the opponent.
         """
+        bid = self.find_bid()
         # check if the last received offer is good enough
-        if self.accept_condition(self.last_received_bid):
+        if self.accept_condition(self.last_received_bid, bid):
             # if so, accept the offer
             action = Accept(self.me, self.last_received_bid)
         else:
             # if not, find a bid to propose as counter offer
-            bid = self.find_bid()
             action = Offer(self.me, bid)
 
         # send the action
@@ -183,24 +184,24 @@ class Agent61(DefaultParty):
         with open(f"{self.storage_dir}/data.md", "w") as f:
             f.write(data)
 
-    ###########################################################################################
-    ################################## Example methods below ##################################
-    ###########################################################################################
-
-    def accept_condition(self, bid: Bid) -> bool:
-        if bid is None:
+    def accept_condition(self, received_bid: Bid, next_bid: Bid) -> bool:
+        if received_bid is None:
             return False
 
+        received_value = self.profile.getUtility(received_bid)
+        possible_value = self.profile.getUtility(next_bid)
         # progress of the negotiation session between 0 and 1 (1 is deadline)
         progress = self.progress.get(time() * 1000)
+        x = 1 - progress
+        adjusted_value = x * float(possible_value)
+        reserve_value = 0
+        if self.reservation_bid is not None:
+            reserve_value = self.profile.getUtility(self.reservation_bid)
 
-        # very basic approach that accepts if the offer is valued above 0.7 and
-        # 95% of the time towards the deadline has passed
-        conditions = [
-            self.profile.getUtility(bid) > 0.8,
-            progress > 0.95,
-        ]
-        return all(conditions)
+        if received_value >= adjusted_value and received_value >= reserve_value:
+            return True
+
+        return False
 
     def find_bid(self) -> Bid:
         # compose a list of all possible bids
