@@ -53,6 +53,9 @@ class Agent61(DefaultParty):
         self.opponent_model: OpponentModel = None
         self.logger.log(logging.INFO, "party is initialized")
 
+        self.best_bids = None
+        self.all_best_bids = None
+
     def notifyChange(self, data: Inform):
         """MUST BE IMPLEMENTED
         This is the entry point of all interaction with your agent after is has been initialised.
@@ -205,20 +208,37 @@ class Agent61(DefaultParty):
 
     def find_bid(self) -> Bid:
         # compose a list of all possible bids
+        alpha = 0.95
+        eps = 0.1
         domain = self.profile.getDomain()
         all_bids = AllBidsList(domain)
 
-        best_bid_score = 0.0
-        best_bid = None
+        candidate_bids = self.get_bids(all_bids)
+        best_bid = sorted(candidate_bids, key=lambda x: (self.score_bid(x, alpha, eps)), reverse=True)[0]
+        if best_bid in self.best_bids:
+            self.best_bids.remove(best_bid)
 
-        # take 500 attempts to find a bid according to a heuristic score
-        for _ in range(500):
-            bid = all_bids.get(randint(0, all_bids.size() - 1))
-            bid_score = self.score_bid(bid)
-            if bid_score > best_bid_score:
-                best_bid_score, best_bid = bid_score, bid
+            if len(self.all_best_bids) > 1:
+                self.best_bids.append(self.best_bids.pop(0))
+
 
         return best_bid
+
+    def get_bids(self, all_bids):
+        if self.best_bids is None:
+            split_off = min(int(all_bids.size()), 200)
+            self.all_best_bids = sorted(all_bids, key=lambda x: self.profile.getUtility(x), reverse=True)
+            self.best_bids = self.all_best_bids[:split_off]
+            self.all_best_bids = self.all_best_bids[split_off:]
+
+        random_bids = []
+
+        # take 500 attempts to find a bid according to a heuristic score
+
+        for _ in range(max(len(self.best_bids), 100)):
+            random_bids.append(all_bids.get(randint(0, all_bids.size() - 1)))
+
+        return self.best_bids + random_bids
 
     def score_bid(self, bid: Bid, alpha: float = 0.95, eps: float = 0.1) -> float:
         """Calculate heuristic score for a bid
