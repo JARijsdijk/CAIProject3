@@ -52,6 +52,8 @@ class Agent61(DefaultParty):
         self.opponent_model: OpponentModel = None
         self.logger.log(logging.INFO, "party is initialized")
 
+        self.best_bids = None
+
     def notifyChange(self, data: Inform):
         """MUST BE IMPLEMENTED
         This is the entry point of all interaction with your agent after is has been initialised.
@@ -204,20 +206,30 @@ class Agent61(DefaultParty):
 
     def find_bid(self) -> Bid:
         # compose a list of all possible bids
+        alpha = 0.95
+        eps = 0.1
+
         domain = self.profile.getDomain()
-        all_bids = AllBidsList(domain)
-
-        best_bid_score = 0.0
-        best_bid = None
-
-        # take 500 attempts to find a bid according to a heuristic score
-        for _ in range(500):
-            bid = all_bids.get(randint(0, all_bids.size() - 1))
-            bid_score = self.score_bid(bid)
-            if bid_score > best_bid_score:
-                best_bid_score, best_bid = bid_score, bid
+        all_bids = self.get_bids(AllBidsList(domain))
+        best_bid = all_bids.sort(key=lambda x: (self.score_bid(x, alpha, eps)))[0]
 
         return best_bid
+
+    def get_bids(self, all_bids):
+        if self.best_bids is None:
+            self.best_bids = all_bids.sort(key=lambda x: self.profile.getUtility(x))[:((len(all_bids)) / 10)]
+            return self.best_bids
+
+        random_bids = []
+
+        # take 500 attempts to find a bid according to a heuristic score
+        for _ in range(len(self.best_bids)):
+            random_bids.append(all_bids.get(randint(0, all_bids.size() - 1)))
+
+        return self.best_bids + random_bids
+
+
+
 
     def score_bid(self, bid: Bid, alpha: float = 0.95, eps: float = 0.1) -> float:
         """Calculate heuristic score for a bid
