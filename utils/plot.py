@@ -256,6 +256,18 @@ def plot_dans(results_trace: dict, parties, fig: Figure):
         name = "_".join(party.split("_")[-2:])
         fig.add_trace(
             go.Scatter(
+                mode="lines+markers",
+                x=xs[party],
+                y=ys[party],
+                name=f"{name} offered - lines",
+                legendgroup=party.join(" - lines"),
+                marker={"color": color[i]},
+                hovertext=texts[party],
+                hoverinfo="text",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
                 mode="markers",
                 x=xs[party],
                 y=ys[party],
