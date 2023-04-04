@@ -1,3 +1,4 @@
+import json
 import shutil
 from collections import defaultdict
 from itertools import permutations
@@ -21,6 +22,9 @@ from pyson.ObjectMapper import ObjectMapper
 from uri.uri import URI
 
 from utils.ask_proceed import ask_proceed
+from utils.evaluate import evaluate, append_metrics
+from utils.plot import plot
+from utils.plot_trace import plot_trace
 
 
 def run_session(settings) -> Tuple[dict, dict]:
@@ -103,15 +107,14 @@ def run_session(settings) -> Tuple[dict, dict]:
     return results_trace, results_summary
 
 
-def run_tournament(tournament_settings: dict) -> Tuple[list, list]:
-    # create agent permutations, ensures that every agent plays against every other agent on both sides of a profile set.
+def run_tournament(tournament_settings: dict, results_dir: Path = None) -> Tuple[list, list]:
+    # Create agent permutations.
+    # Ensures that every agent plays against every other agent on both sides of a profile set.
     agents = tournament_settings["agents"]
     profile_sets = tournament_settings["profile_sets"]
     deadline_time_ms = tournament_settings["deadline_time_ms"]
 
-    num_sessions = (factorial(len(agents)) // factorial(len(agents) - 2)) * len(
-        profile_sets
-    )
+    num_sessions = (factorial(len(agents)) // factorial(len(agents) - 2)) * len(profile_sets)
     if num_sessions > 100:
         message = (
             f"WARNING: this would run {num_sessions} negotiation sessions. Proceed?"
@@ -122,23 +125,48 @@ def run_tournament(tournament_settings: dict) -> Tuple[list, list]:
 
     tournament_results = []
     tournament_steps = []
+    current_session = 1
     for profiles in profile_sets:
-        # quick an dirty check
+        # quick and dirty check
         assert isinstance(profiles, list) and len(profiles) == 2
         for agent_duo in permutations(agents, 2):
             # create session settings dict
             settings = {
+                "session": current_session,
                 "agents": list(agent_duo),
                 "profiles": profiles,
                 "deadline_time_ms": deadline_time_ms,
             }
 
             # run a single negotiation session
-            _, session_results_summary = run_session(settings)
+            session_results_trace, session_results_summary = run_session(settings)
+
+            agent_a = settings["agents"][0]["class"].split(".")[-1]
+            agent_b = settings["agents"][1]["class"].split(".")[-1]
+            domain = settings["profiles"][0][8:16]
+            session_dir_name = "Session_" + str(current_session) + "_" + domain + "_" + agent_a + "_" + agent_b
+            session_dir = Path(results_dir, session_dir_name)
+            if not session_dir.exists():
+                session_dir.mkdir(parents=True)
+
+            # Save session results
+            plot_trace(session_results_trace, session_dir.joinpath("trace_plot.html"))
+            plot(session_results_trace, session_dir.joinpath("plot.html"))
+            metrics = evaluate(session_results_trace, session_dir)
+            append_metrics(metrics, current_session, results_dir)
+
+            # write results to file
+            with open(session_dir.joinpath("session_results_trace.json"), "w", encoding="utf-8") as f:
+                f.write(json.dumps(session_results_trace, indent=2))
+            with open(session_dir.joinpath("session_results_summary.json"), "w", encoding="utf-8") as f:
+                f.write(json.dumps(session_results_summary, indent=2))
 
             # assemble results
             tournament_steps.append(settings)
             tournament_results.append(session_results_summary)
+
+            # Increase current session number
+            current_session += 1
 
     tournament_results_summary = process_tournament_results(tournament_results)
 

@@ -151,7 +151,6 @@ def plot_possible_bids(profile_a_filepath, profile_b_filepath, fig: Figure):
             for value_id, value in issue_value.items():
                 issue_values_a[issue].append((value_id, value))
         cartesian_product_a = [dict(zip(issue_values_a, v)) for v in product(*issue_values_a.values())]
-        print("Cartesian Product: " + str(len(cartesian_product_a)))
 
     # And by getting the issues and values in the profile of party B
     with open(profile_b_filepath, "r") as f:
