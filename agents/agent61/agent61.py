@@ -195,9 +195,9 @@ class Agent61(DefaultParty):
         possible_value = self.profile.getUtility(next_bid)
         # progress of the negotiation session between 0 and 1 (1 is deadline)
         progress = self.progress.get(time() * 1000)
-        x = 1 - progress
+        x = 1 - (0.25 * progress)
         adjusted_value = x * float(possible_value)
-        reserve_value = 0
+        reserve_value = 0.5
         if self.reservation_bid is not None:
             reserve_value = self.profile.getUtility(self.reservation_bid)
 
@@ -209,7 +209,7 @@ class Agent61(DefaultParty):
     def find_bid(self) -> Bid:
         # compose a list of all possible bids
         alpha = 0.95
-        eps = 0.1
+        eps = 0.001
         domain = self.profile.getDomain()
         all_bids = AllBidsList(domain)
 
@@ -226,7 +226,7 @@ class Agent61(DefaultParty):
 
     def get_bids(self, all_bids):
         if self.best_bids is None:
-            split_off = min(int(all_bids.size()), 200)
+            split_off = max(int(all_bids.size() / 100), 400)
             self.all_best_bids = sorted(all_bids, key=lambda x: self.profile.getUtility(x), reverse=True)
             self.best_bids = self.all_best_bids[:split_off]
             self.all_best_bids = self.all_best_bids[split_off:]
