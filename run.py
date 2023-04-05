@@ -27,10 +27,10 @@ settings = {
     "deadline_time_ms": 10000,
 }
 
-# run a session and obtain results in dictionaries
+# Run a session and obtain results in dictionaries
 session_results_trace, session_results_summary = run_session(settings)
 
-# create results directory if it does not exist
+# Create results directory if it does not exist
 agent_a = settings["agents"][0]["class"].split(".")[-1]
 agent_b = settings["agents"][1]["class"].split(".")[-1]
 domain = settings["profiles"][0][8:16]
@@ -39,13 +39,13 @@ RESULTS_DIR = Path("results", child_directory)
 if not RESULTS_DIR.exists():
     RESULTS_DIR.mkdir(parents=True)
 
-# plot trace to html file
+# If the session was successful then process the results
 if not session_results_trace["error"]:
     plot_trace(session_results_trace, RESULTS_DIR.joinpath("trace_plot.html"))
     plot(session_results_trace, RESULTS_DIR.joinpath("plot.html"))
-    res = evaluate(session_results_trace, RESULTS_DIR)
+    evaluate(session_results_trace, RESULTS_DIR)
 
-# write results to file
+# Write the session results to file
 with open(RESULTS_DIR.joinpath("session_results_trace.json"), "w", encoding="utf-8") as f:
     f.write(json.dumps(session_results_trace, indent=2))
 with open(RESULTS_DIR.joinpath("session_results_summary.json"), "w", encoding="utf-8") as f:

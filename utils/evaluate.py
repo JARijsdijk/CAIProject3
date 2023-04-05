@@ -43,11 +43,12 @@ def evaluate(results_trace: dict, output_path: Path):
     # agreement_bid = None
     agreement_actor = ""
 
-    total_num_offers = 0
     # For each offer per agent calculate the move class
     utility_a = defaultdict(lambda: 0.0)
     utility_b = defaultdict(lambda: 0.0)
-    # Tally the move classes per party
+    # Count the number of moves per agent
+    num_moves = defaultdict(lambda: 0)
+    # Tally the move classes per agent
     fortunate_moves = defaultdict(lambda: 0)
     selfish_moves = defaultdict(lambda: 0)
     concession_moves = defaultdict(lambda: 0)
@@ -58,9 +59,6 @@ def evaluate(results_trace: dict, output_path: Path):
     for action in results_trace["actions"]:
         # Check if the action performed was an offer
         if "Offer" in action:
-            # Increment the total number of offers
-            total_num_offers += 1
-
             offer = action["Offer"]
             # Get bidder
             agent = offer["actor"]
@@ -71,16 +69,21 @@ def evaluate(results_trace: dict, output_path: Path):
             new_utility_a = utility[0]
             new_utility_b = utility[1]
 
+            # Increment the number of moves made by bidder
+            num_moves[agent] += 1
             # Calculate the difference in the utilities of the previous bid made by the bidder and the current bid
             delta_a = new_utility_a - utility_a[agent]
             delta_b = new_utility_b - utility_b[agent]
+            # Write deltas to file
+            with open(output_path.joinpath(f"deltas_{names[agents.index(agent)]}.csv"), "a", encoding="utf-8") as f:
+                f.write(f"{delta_a: .3f}, {delta_b: .3f}\n")
 
             # Classify and tally the move based on the difference in the utilities
             if delta_a > 0 and delta_b > 0:
                 fortunate_moves[agent] += 1
             if delta_a > 0 and delta_b <= 0:
                 selfish_moves[agent] += 1
-            if delta_a > 0 and delta_b >= 0:
+            if delta_a < 0 and delta_b >= 0:
                 concession_moves[agent] += 1
             if delta_a <= 0 and delta_b < 0:
                 unfortunate_moves[agent] += 1
@@ -120,7 +123,6 @@ def evaluate(results_trace: dict, output_path: Path):
         "utility_b": utility_b,
         "distance_nash": distance_nash,
         "distance_kalai": distance_kalai,
-        "bid_count": total_num_offers,
     }
 
     # Create a dictionary containing the dans metrics
@@ -130,23 +132,26 @@ def evaluate(results_trace: dict, output_path: Path):
         dans_metrics["domain"].append(domain)
         # Agent names
         dans_metrics["agent"].append(names[agents.index(agent)])
+        # Number of offers
+        num_offers = num_moves[agent]
+        dans_metrics["num_offers"].append(num_offers)
         # Percentage of fortunate moves
-        fortunate = get_percentage(fortunate_moves[agent], total_num_offers)
+        fortunate = get_percentage(fortunate_moves[agent], num_offers)
         dans_metrics["fortunate_%"].append(fortunate)
         # Percentage of selfish moves
-        selfish = get_percentage(selfish_moves[agent], total_num_offers)
+        selfish = get_percentage(selfish_moves[agent], num_offers)
         dans_metrics["selfish_%"].append(selfish)
         # Percentage of concession moves
-        concession = get_percentage(concession_moves[agent], total_num_offers)
+        concession = get_percentage(concession_moves[agent], num_offers)
         dans_metrics["concession_%"].append(concession)
         # Percentage of unfortunate moves
-        unfortunate = get_percentage(unfortunate_moves[agent], total_num_offers)
+        unfortunate = get_percentage(unfortunate_moves[agent], num_offers)
         dans_metrics["unfortunate_%"].append(unfortunate)
         # Percentage of nice moves
-        nice = get_percentage(nice_moves[agent], total_num_offers)
+        nice = get_percentage(nice_moves[agent], num_offers)
         dans_metrics["nice_%"].append(nice)
         # Percentage of silent moves
-        silent = get_percentage(silent_moves[agent], total_num_offers)
+        silent = get_percentage(silent_moves[agent], num_offers)
         dans_metrics["silent_%"].append(silent)
         # TODO sensitivity values
 
