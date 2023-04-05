@@ -29,10 +29,14 @@ tournament_settings = {
         {
             "class": "agents.conceder_agent.conceder_agent.ConcederAgent",
         },
+        {
+            "class": "agents.random_agent.random_agent.RandomAgent",
+        },
     ],
     "profile_sets": [
         ["domains/domain00/profileA.json", "domains/domain00/profileB.json"],
         ["domains/domain01/profileA.json", "domains/domain01/profileB.json"],
+        ["domains/domain42/profileA.json", "domains/domain42/profileB.json"],
     ],
     "deadline_time_ms": 10000,
 }

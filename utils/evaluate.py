@@ -25,7 +25,8 @@ def distance_pareto(utility, is_b, pareto_front) -> float:
         utility_pareto_self = utility_pareto[is_b]
         if utility_pareto_self >= utility_self or math.isclose(utility_pareto_self, utility_self):
             utility_pareto_opponent = utility_pareto[not is_b]
-            candidates.append([utility_pareto_self, utility_pareto_opponent])
+            if utility_pareto_opponent >= utility_opponent or math.isclose(utility_pareto_opponent, utility_opponent):
+                candidates.append([utility_pareto_self, utility_pareto_opponent])
     # Find the closest Pareto point to the bid point
     bid_point = [utility_self, utility_opponent]
     closest_point = []
