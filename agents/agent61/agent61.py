@@ -219,7 +219,7 @@ class Agent61(DefaultParty):
             self.best_bids.remove(best_bid)
 
             if len(self.all_best_bids) > 1:
-                self.best_bids.append(self.best_bids.pop(0))
+                self.best_bids.append(self.all_best_bids.pop(0))
 
 
         return best_bid
