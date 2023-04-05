@@ -13,6 +13,34 @@ def distance(x, y) -> float:
     return math.dist(x, y)
 
 
+def distance_pareto(utility, is_b, pareto_front) -> float:
+    """
+    Distance to the closest point on the Pareto frontier
+    """
+    utility_self = utility[is_b]
+    utility_opponent = utility[not is_b]
+    candidates = []
+    for point in pareto_front:
+        utility_pareto = point["utility"]
+        utility_pareto_self = utility_pareto[is_b]
+        if utility_pareto_self >= utility_self or math.isclose(utility_pareto_self, utility_self):
+            utility_pareto_opponent = utility_pareto[not is_b]
+            candidates.append([utility_pareto_self, utility_pareto_opponent])
+    # Find the closest Pareto point to the bid point
+    bid_point = [utility_self, utility_opponent]
+    closest_point = []
+    d = float("inf")
+    for pareto_point in candidates:
+        new_d = distance(bid_point, pareto_point)
+        if new_d < d:
+            closest_point = pareto_point
+        d = min(d, new_d)
+    # print(f"Bid point: ({bid_point[0]}, {bid_point[1]})")
+    # print(f"Par point: ({closest_point[0]}, {closest_point[1]})")
+    # print(f"Distance: {d}")
+    return d
+
+
 def get_percentage(x, y) -> str:
     z = (float(x) / float(y)) * 100
     return f"{z: .3f}"
@@ -34,6 +62,7 @@ def evaluate(results_trace: dict, output_path: Path):
     specials_filepath = Path("domains/" + domain + "/specials.json")
     with open(specials_filepath, "r") as f:
         specials = json.load(f)
+        pareto_front = specials["pareto_front"]
         kalai_utility = specials["kalai"]["utility"]
         nash_utility = specials["nash"]["utility"]
 
@@ -55,6 +84,8 @@ def evaluate(results_trace: dict, output_path: Path):
     unfortunate_moves = defaultdict(lambda: 0)
     nice_moves = defaultdict(lambda: 0)
     silent_moves = defaultdict(lambda: 0)
+    # Total distance from the Pareto Front (to be divided by number of offers to get the average)
+    total_distance = defaultdict(lambda: 0.0)
 
     for action in results_trace["actions"]:
         # Check if the action performed was an offer
@@ -91,6 +122,15 @@ def evaluate(results_trace: dict, output_path: Path):
                 nice_moves[agent] += 1
             if math.isclose(delta_a, 0) and math.isclose(delta_b, 0):
                 silent_moves[agent] += 1
+
+            # Compute the distance of the bid from the Pareto Front
+            is_b = agents.index(agent)
+            d = distance_pareto(utility, is_b, pareto_front)
+            # Write distance to file
+            with open(output_path.joinpath(f"distances_{names[agents.index(agent)]}.csv"), "a", encoding="utf-8") as f:
+                f.write(f"{d}\n")
+            # Add distance to the total distance
+            total_distance[agent] += d
 
             # Overwrite the previous utilities with the current utilities
             utility_a[agent] = new_utility_a
@@ -153,7 +193,17 @@ def evaluate(results_trace: dict, output_path: Path):
         # Percentage of silent moves
         silent = get_percentage(silent_moves[agent], num_offers)
         dans_metrics["silent_%"].append(silent)
-        # TODO sensitivity values
+        # Sensitivity to Opponent's Behaviour
+        numerator = fortunate_moves[agent] + nice_moves[agent] + concession_moves[agent]
+        denominator = unfortunate_moves[agent] + silent_moves[agent] + selfish_moves[agent]
+        if denominator == 0:
+            behav_sens = "inf"
+        else:
+            behav_sens = f"{float(numerator) / float(denominator):.3f}"
+        dans_metrics["behav_sens"].append(behav_sens)
+        # Sensitivity to Opponent's Preferences
+        average_distance_from_pareto = total_distance[agent] / float(num_offers)
+        dans_metrics["pref_sens"].append(f"{average_distance_from_pareto:.3f}")
 
     # Write and return metrics
     metrics = (evaluation_metrics, dans_metrics)
