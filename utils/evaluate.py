@@ -1,24 +1,43 @@
 import json
 import math
-import os
 from pathlib import Path
 from collections import defaultdict
 
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.graph_objs import Figure
 
 
 def distance(x, y) -> float:
+    """
+    Calculate the distance between the two specified utilities.
+    The distance is defined as the Euclidean distance between the points x and y,
+    where each point is a two-dimensional list.
+
+    Args:
+        x: the first utility, as list where x[0] is the utility of agent A and x[1] is the utility of agent B.
+        y: the second utility, as list where y[0] is the utility of agent A and y[1] is the utility of agent B.
+    Return:
+        A float representing the distance.
+    """
     return math.dist(x, y)
 
 
 def distance_pareto(utility, is_b, pareto_front) -> float:
     """
-    Distance to the closest point on the Pareto frontier
+    Computes the distance to the closest point on the Pareto frontier,
+    based on the specified utility of the bid, where the agent's own utility does not decrease and
+    the opponent's utility also does not decrease.
+    This can be used as a helper function to compute the sensitive to an opponent's preferences.
+    Args:
+        utility: the utility of the bid, as list where utility[0] is the utility of agent A and utility[1] is the utility of agent B.
+        is_b (bool): whether the bidder is agent B, set to true when the bidder is agent B and false when the bidder is agent A.
+        pareto_front: the list of bids which represent the Pareto front as specified in the specials file of the domain.
+    Return:
+        A float representing the distance.
     """
     utility_self = utility[is_b]
     utility_opponent = utility[not is_b]
+    # Create a list of candidate points which contains points on the Pareto frontier
+    # where the agent's own utility does not decrease and the opponent's utility does not decrease
     candidates = []
     for point in pareto_front:
         utility_pareto = point["utility"]
@@ -27,27 +46,64 @@ def distance_pareto(utility, is_b, pareto_front) -> float:
             utility_pareto_opponent = utility_pareto[not is_b]
             if utility_pareto_opponent >= utility_opponent or math.isclose(utility_pareto_opponent, utility_opponent):
                 candidates.append([utility_pareto_self, utility_pareto_opponent])
-    # Find the closest Pareto point to the bid point
+    # Find the closest Pareto point to the specified bid point
     bid_point = [utility_self, utility_opponent]
-    closest_point = []
     d = float("inf")
     for pareto_point in candidates:
         new_d = distance(bid_point, pareto_point)
-        if new_d < d:
-            closest_point = pareto_point
         d = min(d, new_d)
-    # print(f"Bid point: ({bid_point[0]}, {bid_point[1]})")
-    # print(f"Par point: ({closest_point[0]}, {closest_point[1]})")
-    # print(f"Distance: {d}")
     return d
 
 
-def get_percentage(x, y) -> str:
-    z = (float(x) / float(y)) * 100
-    return f"{z: .3f}"
+def get_percentage(x: float, y: float) -> float:
+    """
+    Returns the ratio x/y expressed as a fraction of 100.
+    Args:
+        x (float): the numerator.
+        y (float): the denominator.
+    Return:
+        A float representing the percentage.
+    """
+    return (x / y) * 100
 
 
 def evaluate(results_trace: dict, output_path: Path):
+    """
+    Evaluates the specified negotiation trace and saves the evaluation metrics to files in the specified output path.
+    This function is used to generate some helpful metrics to assist in evaluating the agents.
+    These metrics are classified as evaluation metrics, which consist of
+        - "domain": the domain.
+        - "agent_A": the name of agent A.
+        - "agent_B": the name of agent B.
+        - "agreement": whether an agreement was made.
+        - "agreed_by": the name of the agent which accepted an offer.
+        - "utility_a": the utility (of the accepted bid) for agent A.
+        - "utility_b": the utility (of the accepted bid) for agent B.
+        - "distance_nash": the distance of the accepted bid from the nash.
+        - "distance_kalai": the distance of the accepted bid from the kalai.
+    And Dans metrics, which are asymmetric and so needs to be represented as lists (with values for each agent) with
+        - "domain": the domain.
+        - "agent": the agent names.
+        - "num_offers": the number of offers.
+        - "fortunate_%": the percentage of fortunate moves.
+        - "selfish_%": the percentage of selfish moves.
+        - "concession_%": the percentage of concession moves.
+        - "unfortunate_%": the percentage of unfortunate moves.
+        - "nice_%": the percentage of nice moves.
+        - "silent_%": the percentage of silent moves.
+        - "behav_sens": the sensitivity to the opponent's behaviour.
+            If behav_sens<1, then an agent is more or less insensitive to the opponent’s behaviour;
+            if behav_sens>1, then an agent is more or less sensitive to the opponent’s behaviour,
+            with complete sensitivity for behav_sens=inf.
+        - "pref_sens": the sensitivity to  the opponent's preferences.
+            A negotiation strategy that is perfectly sensitive to opponent’s preferences would have a pref_sens = 0.
+            The higher the measure then the worse the sensitivity of the strategy.
+    Args:
+        results_trace (dict): a dictionary representing the negotiation trace of the current session run.
+        output_path (Path): the path to the directory where the metrics should be saved.
+    Return:
+        A tuple containing the evaluation metrics and Dans metrics, represented as dictionaries.
+    """
     # Get the names of each agent
     agents = []
     names = []
@@ -55,7 +111,7 @@ def evaluate(results_trace: dict, output_path: Path):
         agents.append(agent)
         names.append("_".join(str(agent).split("_")[-2:]))
 
-    # Get the profiles and domain
+    # Get the domain from the profile of agent A
     profile_a_filepath = results_trace["partyprofiles"][agents[0]]["profile"][5:]
     domain = profile_a_filepath[8:16]
 
@@ -70,22 +126,28 @@ def evaluate(results_trace: dict, output_path: Path):
     # Declare variables used to store the acceptance values if an agreement exists
     agreement = False
     agreement_utility = [0.0, 0.0]
-    # agreement_bid = None
     agreement_actor = ""
 
-    # For each offer per agent calculate the move class
+    # In the following lines of code, we assign each bid to a move class to then calculate the Dans metrics per agent
+    # This involves, firstly, counting the number of negotiation moves (aka bids) per bidder
+    num_moves = defaultdict(lambda: 0)
+    # Then by storing the utility for agent A and agent B for the previous bid made by the bidder,
+    # we can calculate the difference compared to the utility for agent A and agent B for the next bid,
+    # made by the same bidder
     utility_a = defaultdict(lambda: 0.0)
     utility_b = defaultdict(lambda: 0.0)
-    # Count the number of moves per agent
-    num_moves = defaultdict(lambda: 0)
-    # Tally the move classes per agent
+    # We then classify the move, from the previous bid to the next bid, by looking at the difference in utility,
+    # for agent A and agent B, for example if both utilities increase then the move is fortunate,
+    # but if only the bidder's utility increases then the move is selfish
+    # We tally the move classes per agent
     fortunate_moves = defaultdict(lambda: 0)
     selfish_moves = defaultdict(lambda: 0)
     concession_moves = defaultdict(lambda: 0)
     unfortunate_moves = defaultdict(lambda: 0)
     nice_moves = defaultdict(lambda: 0)
     silent_moves = defaultdict(lambda: 0)
-    # Total distance from the Pareto Front (to be divided by number of offers to get the average)
+    # To compute the Sensitivity to an Opponent's Preferences we need to compute the average distance from Pareto front
+    # For this we use the Total distance from the Pareto Front (to be divided by number of offers to get the average)
     total_distance = defaultdict(lambda: 0.0)
 
     for action in results_trace["actions"]:
@@ -101,14 +163,14 @@ def evaluate(results_trace: dict, output_path: Path):
             new_utility_a = utility[0]
             new_utility_b = utility[1]
 
-            # Increment the number of moves made by bidder
+            # Increment the number of moves made by the bidder
             num_moves[agent] += 1
             # Calculate the difference in the utilities of the previous bid made by the bidder and the current bid
             delta_a = new_utility_a - utility_a[agent]
             delta_b = new_utility_b - utility_b[agent]
-            # Write deltas to file
+            # Write deltas to a file
             with open(output_path.joinpath(f"deltas_{names[agents.index(agent)]}.csv"), "a", encoding="utf-8") as f:
-                f.write(f"{delta_a: .3f}, {delta_b: .3f}\n")
+                f.write(f"{delta_a}, {delta_b}\n")
 
             # Classify and tally the move based on the difference in the utilities
             if delta_a > 0 and delta_b > 0:
@@ -143,27 +205,22 @@ def evaluate(results_trace: dict, output_path: Path):
             agreement = True
             agent = accept["actor"]
             agreement_actor = names[agents.index(agent)]
-            # agreement_bid = accept["bid"]["issuevalues"]
             utility = []
             for _, util in accept["utilities"].items():
                 utility.append(util)
             agreement_utility = utility
 
     # Create a dictionary containing the evaluation metrics
-    utility_a = f"{agreement_utility[0]:.3f}"
-    utility_b = f"{agreement_utility[1]:.3f}"
-    distance_nash = f"{distance(agreement_utility, nash_utility):.3f}"
-    distance_kalai = f"{distance(agreement_utility, kalai_utility):.3f}"
     evaluation_metrics = {
         "domain": domain,
         "agent_A": names[0],
         "agent_B": names[1],
         "agreement": agreement,
         "agreed_by": agreement_actor,
-        "utility_a": utility_a,
-        "utility_b": utility_b,
-        "distance_nash": distance_nash,
-        "distance_kalai": distance_kalai,
+        "utility_a": agreement_utility[0],
+        "utility_b": agreement_utility[1],
+        "distance_nash": distance(agreement_utility, nash_utility),
+        "distance_kalai": distance(agreement_utility, kalai_utility),
     }
 
     # Create a dictionary containing the dans metrics
@@ -200,11 +257,11 @@ def evaluate(results_trace: dict, output_path: Path):
         if denominator == 0:
             behav_sens = "inf"
         else:
-            behav_sens = f"{float(numerator) / float(denominator):.3f}"
+            behav_sens = float(numerator) / float(denominator)
         dans_metrics["behav_sens"].append(behav_sens)
         # Sensitivity to Opponent's Preferences
         average_distance_from_pareto = total_distance[agent] / float(num_offers)
-        dans_metrics["pref_sens"].append(f"{average_distance_from_pareto:.3f}")
+        dans_metrics["pref_sens"].append(average_distance_from_pareto)
 
     # Write and return metrics
     metrics = (evaluation_metrics, dans_metrics)

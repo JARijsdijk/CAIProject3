@@ -30,7 +30,7 @@ def plot_trace(results_trace: dict, plot_file: str):
             x=accept["x"],
             y=accept["y"],
             name="agreement",
-            marker={"color": "green", "size": 15},
+            marker={"color": "DarkMagenta", "size": 15},
             hoverinfo="skip",
         )
     )
@@ -70,6 +70,6 @@ def plot_trace(results_trace: dict, plot_file: str):
             "x": 0,
         },
     )
-    fig.update_xaxes(title_text="round", range=[0, index + 1], ticks="outside")
+    fig.update_xaxes(title_text="round", range=[0, len(results_trace["actions"]) + 10], ticks="outside")
     fig.update_yaxes(title_text="utility", range=[0, 1], ticks="outside")
     fig.write_html(f"{os.path.splitext(plot_file)[0]}.html")

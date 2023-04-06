@@ -78,7 +78,7 @@ def plot_nash(nash, fig: Figure):
             mode="markers",
             name="Nash",
             legendgroup="Nash",
-            marker=dict(color="DarkOrange", size=8, line_width=0, symbol="x"),
+            marker=dict(color="DarkOrange", size=20, line_width=0, symbol="x"),
             hovertext=text,
             hoverinfo="text",
         )
@@ -100,7 +100,7 @@ def plot_kalai(kalai, fig: Figure):
             mode="markers",
             name="Kalai-Smorodinsky",
             legendgroup="Kalai",
-            marker=dict(color="DarkCyan", size=8, line_width=0, symbol="cross"),
+            marker=dict(color="DarkCyan", size=20, line_width=0, symbol="cross"),
             hovertext=text,
             hoverinfo="text",
         )
@@ -130,7 +130,7 @@ def plot_pareto_front(pareto_front, fig: Figure):
             name="Pareto",
             legendgroup="Pareto",
             marker=dict(color="DarkGreen", size=3),
-            line=dict(color="DarkGreen", width=1.5),
+            line=dict(color="DarkGreen", width=2),
             hovertext=texts,
             hoverinfo="text",
         )
@@ -249,6 +249,20 @@ def plot_dans(results_trace: dict, parties, fig: Figure):
                 + [f"{i}: {v}" for i, v in bid.items()]
             )
 
+    # Plot acceptance point if it exists
+    if accepted:
+        fig.add_trace(
+            go.Scatter(
+                mode="markers",
+                x=[accepted_x],
+                y=[accepted_y],
+                name="agreement",
+                marker={"color": "DarkMagenta", "size": 15},
+                hovertext=[accepted_text],
+                hoverinfo="text",
+            )
+        )
+
     # Plot offers
     color = {0: "red", 1: "blue"}
     for i, party in enumerate(parties):
@@ -278,16 +292,3 @@ def plot_dans(results_trace: dict, parties, fig: Figure):
             )
         )
 
-    # Plot acceptance point if it exists
-    if accepted:
-        fig.add_trace(
-            go.Scatter(
-                mode="markers",
-                x=[accepted_x],
-                y=[accepted_y],
-                name="agreement",
-                marker={"color": "DarkMagenta"},
-                hovertext=[accepted_text],
-                hoverinfo="text",
-            )
-        )
