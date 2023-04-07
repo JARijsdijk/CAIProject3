@@ -83,6 +83,7 @@ class Agent61(DefaultParty):
             )
             self.profile = profile_connection.getProfile()
             self.domain = self.profile.getDomain()
+            self.reservation_bid = self.profile.getReservationBid()
             profile_connection.close()
 
         # ActionDone informs you of an action (an offer or an accept)
@@ -105,7 +106,6 @@ class Agent61(DefaultParty):
 
         # Finished will be send if the negotiation has ended (through agreement or deadline)
         elif isinstance(data, Finished):
-            self.save_data()
             # terminate the agent MUST BE CALLED
             self.logger.log(logging.INFO, "party is terminating:")
             super().terminate()
@@ -177,15 +177,6 @@ class Agent61(DefaultParty):
 
         # send the action
         self.send_action(action)
-
-    def save_data(self):
-        """This method is called after the negotiation is finished. It can be used to store data
-        for learning capabilities. Note that no extensive calculations can be done within this method.
-        Taking too much time might result in your agent being killed, so use it for storage only.
-        """
-        data = "Data for learning (see README.md)"
-        with open(f"{self.storage_dir}/data.md", "w") as f:
-            f.write(data)
 
     def accept_condition(self, received_bid: Bid, next_bid: Bid) -> bool:
         if received_bid is None:
