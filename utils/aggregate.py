@@ -36,7 +36,7 @@ def main():
     for evaluation in evaluation_list:
         for session in evaluation:
             session_id = int(session["session_id"])
-            agreement = bool(session["agreement"])
+            agreement = session["agreement"] == "True"
             if agreement:
                 # Increment the count of the agreements reached
                 evaluation_totals[session_id]["num_agreements"] += 1
