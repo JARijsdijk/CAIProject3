@@ -64,6 +64,9 @@ def get_percentage(x: float, y: float) -> float:
     Return:
         A float representing the percentage.
     """
+    # Special case where no moves are made
+    if y == 0:
+        return 0
     return (x / y) * 100
 
 
@@ -95,7 +98,7 @@ def evaluate(results_trace: dict, output_path: Path):
             If behav_sens<1, then an agent is more or less insensitive to the opponent’s behaviour;
             if behav_sens>1, then an agent is more or less sensitive to the opponent’s behaviour,
             with complete sensitivity for behav_sens=inf.
-        - "pref_sens": the sensitivity to  the opponent's preferences.
+        - "pref_sens": the sensitivity to the opponent's preferences.
             A negotiation strategy that is perfectly sensitive to opponent’s preferences would have a pref_sens = 0.
             The higher the measure then the worse the sensitivity of the strategy.
     Args:
@@ -260,7 +263,7 @@ def evaluate(results_trace: dict, output_path: Path):
             behav_sens = float(numerator) / float(denominator)
         dans_metrics["behav_sens"].append(behav_sens)
         # Sensitivity to Opponent's Preferences
-        average_distance_from_pareto = total_distance[agent] / float(num_offers)
+        average_distance_from_pareto = total_distance[agent] / float(num_offers) if num_offers != 0 else total_distance[agent]
         dans_metrics["pref_sens"].append(average_distance_from_pareto)
 
     # Write and return metrics
