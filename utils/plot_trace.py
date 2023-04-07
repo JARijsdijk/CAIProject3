@@ -61,15 +61,16 @@ def plot_trace(results_trace: dict, plot_file: str):
             )
 
     fig.update_layout(
-        # width=1000,
-        height=800,
+        height=1500,
+        width=1500,
         legend={
             "yanchor": "bottom",
             "y": 1,
             "xanchor": "left",
             "x": 0,
+            "orientation": "h",
         },
     )
-    fig.update_xaxes(title_text="round", range=[0, len(results_trace["actions"]) + 10], ticks="outside")
-    fig.update_yaxes(title_text="utility", range=[0, 1], ticks="outside")
+    fig.update_xaxes(title_text="Round", range=[0, len(results_trace["actions"]) + 10], ticks="outside")
+    fig.update_yaxes(title_text="Utility", range=[0, 1 + 0.1], ticks="outside")
     fig.write_html(f"{os.path.splitext(plot_file)[0]}.html")

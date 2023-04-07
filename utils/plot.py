@@ -32,15 +32,18 @@ def plot(results_trace: dict, plot_file: str):
     plot_dans(results_trace, parties, fig)
 
     fig.update_layout(
+        height=1500,
+        width=1500,
         legend={
             "yanchor": "bottom",
             "y": 1,
             "xanchor": "left",
             "x": 0,
+            "orientation": "h",
         },
     )
-    fig.update_xaxes(title_text="Utility A", range=[0, 1], ticks="outside")
-    fig.update_yaxes(title_text="Utility B", range=[0, 1], ticks="outside")
+    fig.update_xaxes(title_text="Utility A", range=[0, 1.1], ticks="outside")
+    fig.update_yaxes(title_text="Utility B", range=[0, 1.1], ticks="outside")
     fig.write_html(f"{os.path.splitext(plot_file)[0]}.html")
 
 
@@ -78,7 +81,7 @@ def plot_nash(nash, fig: Figure):
             mode="markers",
             name="Nash",
             legendgroup="Nash",
-            marker=dict(color="DarkOrange", size=20, line_width=0, symbol="x"),
+            marker=dict(color="DarkOrange", size=25, line_width=0, symbol="x"),
             hovertext=text,
             hoverinfo="text",
         )
@@ -100,7 +103,7 @@ def plot_kalai(kalai, fig: Figure):
             mode="markers",
             name="Kalai-Smorodinsky",
             legendgroup="Kalai",
-            marker=dict(color="DarkCyan", size=20, line_width=0, symbol="cross"),
+            marker=dict(color="DarkCyan", size=25, line_width=0, symbol="cross"),
             hovertext=text,
             hoverinfo="text",
         )
@@ -130,7 +133,7 @@ def plot_pareto_front(pareto_front, fig: Figure):
             name="Pareto",
             legendgroup="Pareto",
             marker=dict(color="DarkGreen", size=3),
-            line=dict(color="DarkGreen", width=2),
+            line=dict(color="DarkGreen", width=4),
             hovertext=texts,
             hoverinfo="text",
         )
