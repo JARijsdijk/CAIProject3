@@ -5,7 +5,7 @@ __pycache__
 agent_storage
 logs
 results
-results_gauntlet_1
+results_gauntlet_*
 
 *.sbatch
 *.log
