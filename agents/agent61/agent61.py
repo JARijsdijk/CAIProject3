@@ -32,7 +32,7 @@ from .utils.opponent_model import OpponentModel
 
 class Agent61(DefaultParty):
     """
-    Template of a Python geniusweb agent.
+    Agent61
     """
 
     def __init__(self):
@@ -141,7 +141,7 @@ class Agent61(DefaultParty):
         Returns:
             str: Agent description
         """
-        return "Template agent for the ANL 2022 competition"
+        return "Agent61 for CSE3210 (2022/23)."
 
     def opponent_action(self, action):
         """Process an action that was received from the opponent.
@@ -211,7 +211,6 @@ class Agent61(DefaultParty):
 
             if len(self.all_best_bids) > 1:
                 self.best_bids.append(self.all_best_bids.pop(0))
-
 
         return best_bid
 
